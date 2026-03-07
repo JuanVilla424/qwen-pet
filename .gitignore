@@ -127,7 +127,7 @@ $RECYCLE.BIN/
 
 # Go
 bin/
-pet
+/pet
 *.exe
 *.exe~
 *.dll
