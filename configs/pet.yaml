@@ -1,0 +1,43 @@
+---
+# qwen-pet configuration
+
+server:
+  host: "0.0.0.0"
+  port: 7778
+
+pet:
+  type: "fox"
+  name: "Kit"
+  mood_decay_hours: 24
+  traits:
+    - curious
+    - creative
+    - honest
+    - sarcastic
+    - impatient
+
+kb:
+  path: "./data/chromem"
+  compress: true
+  collection: "knowledge"
+
+embeddings:
+  provider: "ollama"
+  ollama_model: "nomic-embed-text"
+  ollama_url: "http://localhost:11434/api"
+
+ai:
+  base_url: "https://openrouter.ai/api/v1/chat/completions"
+  model: "qwen/qwen3.5-flash-02-23"
+  temperature: 0.7
+  max_tokens: 1024
+  timeout_seconds: 30
+
+telegram:
+  timeout_minutes: 5
+
+decision:
+  kb_threshold: 0.82
+  ai_threshold: 0.70
+
+log_level: "info"

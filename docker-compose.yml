@@ -1,0 +1,24 @@
+---
+services:
+  pet:
+    build: .
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/data
+      - ./configs:/configs
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  ollama-data:

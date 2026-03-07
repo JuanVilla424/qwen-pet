@@ -1,3 +1,17 @@
+## [0.1.2] - 2026-03-07
+
+### Bug Fixes
+
+- **ci**: exclude venv from gofmt and handle missing cmd dir
+
+### Documentation
+
+- **core**: update changelog
+
+### Chores
+
+- **config**: add env template (`patch candidate`)
+
 ## [0.1.1] - 2026-03-07
 
 ### Bug Fixes
