@@ -1,4 +1,4 @@
-.PHONY: build run test lint clean ollama-setup docker-up docker-down
+.PHONY: build run test lint clean setup ollama-setup docker-up docker-down
 
 BINARY := bin/pet
 SRC := ./cmd/pet
@@ -19,8 +19,14 @@ lint:
 clean:
 	rm -rf bin/ data/
 
+setup: build ollama-setup
+	@echo "qwen-pet ready. Configure MCP in your editor and run: make run"
+
 ollama-setup:
-	ollama pull nomic-embed-text
+	docker compose up -d ollama
+	@echo "Waiting for Ollama to start..."
+	@sleep 3
+	docker compose exec ollama ollama pull nomic-embed-text
 
 docker-up:
 	docker compose up -d

@@ -1,39 +1,81 @@
 # 🤖 Qwen PET — Personal Entertainment Tool
 
 ![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=fff)
-![Qwen](https://img.shields.io/badge/Qwen-3.5-7C3AED)
+![Qwen](https://img.shields.io/badge/Qwen-3.5_Flash-7C3AED)
 ![MCP](https://img.shields.io/badge/MCP-Server-blue)
 ![Telegram](https://img.shields.io/badge/Telegram-Bot-26A5E4?logo=telegram&logoColor=fff)
-![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=fff)
+![Ollama](https://img.shields.io/badge/Ollama-Embeddings-333?logo=ollama)
 ![Build Status](https://github.com/JuanVilla424/qwen-pet/actions/workflows/ci.yml/badge.svg?branch=main)
 ![Status](https://img.shields.io/badge/Status-Development-yellow.svg)
 ![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)
 
-**Qwen PET** is a persistent AI intermediary agent that integrates with Claude Code and OpenCode via MCP (Model Context Protocol). It maintains a Knowledge Base of developer preferences, architectural decisions, and project patterns — responding autonomously when confident, escalating to the developer via Telegram when it needs input.
+**Qwen PET** is a persistent AI intermediary agent that works as a virtual pet (tamagotchi). It accumulates developer decisions, preferences, and patterns in a semantic KB. When it knows the answer, it responds autonomously with the chosen pet's personality; when it doesn't, it escalates via Telegram.
+
+Integrates with Claude Code and OpenCode via MCP (Model Context Protocol) as a stdio server.
 
 ## 📚 Table of Contents
 
 - [Features](#-features)
+- [Available Pets](#-available-pets)
+- [Personality System](#-personality-system)
 - [Architecture](#-architecture)
-- [Getting Started](#-getting-started)
-  - [Prerequisites](#-prerequisites)
-  - [Installation](#-installation)
-  - [Environment Setup](#-environment-setup)
-  - [Pre-Commit Hooks](#-pre-commit-hooks)
-- [Usage](#-usage)
+- [Quickstart](#-quickstart)
+- [MCP Configuration](#-mcp-configuration)
+- [MCP Tools](#-mcp-tools)
+- [Telegram Commands](#-telegram-commands)
 - [Project Structure](#-project-structure)
-- [Contributing](#-contributing)
+- [Development](#-development)
 - [License](#-license)
 
 ## 🌟 Features
 
-- **🧠 Knowledge Base** — Persistent vector store (chromem-go) with developer preferences, decisions, and patterns
+- **🧠 Knowledge Base** — Persistent vector store (chromem-go) with preferences, decisions, and patterns
 - **🔌 MCP Server** — stdio transport, integrates with Claude Code and OpenCode as a tool provider
-- **🤖 AI Decision Engine** — Qwen 3.5 via OpenRouter API for intelligent responses when KB doesn't have enough context
-- **💬 Telegram Bot** — Escalation channel with inline keyboards for approval workflows
-- **🌐 Web UI** — Vue 3 + TypeScript + Tailwind CSS configuration panel
-- **📊 Confidence Scoring** — Automatic routing: KB direct → AI-assisted → Telegram escalation
-- **🔄 Context Persistence** — No more losing decisions between sessions
+- **🤖 Decision Engine** — KB → Qwen 3.5 (OpenRouter) → Telegram pipeline with automatic confidence routing
+- **🐾 Virtual Pet** — 18 selectable animals, each with unique visual identity (emojis, sounds, moods)
+- **🎭 Configurable Personality** — 27 combinable traits (15 virtues + 12 defects) that affect ALL responses
+- **💬 Telegram Bot** — Escalation channel when the pet doesn't know the answer
+- **💾 Persistence** — Pet state (mood, stats) + semantic KB across sessions
+
+## 🐾 Available Pets
+
+| Animal    | Emoji     | Default | Animal     | Emoji     | Default |
+| --------- | --------- | ------- | ---------- | --------- | ------- |
+| 🐱 cat    | `U+1F431` | Michi   | 🐬 dolphin | `U+1F42C` | Finn    |
+| 🐶 dog    | `U+1F436` | Rex     | 🦎 lizard  | `U+1F98E` | Gecko   |
+| 🦊 fox    | `U+1F98A` | Kit     | 🐙 octopus | `U+1F419` | Inky    |
+| 🦉 owl    | `U+1F989` | Archie  | 🐰 rabbit  | `U+1F430` | Bun     |
+| 🐉 dragon | `U+1F409` | Drakar  | 🐧 penguin | `U+1F427` | Tux     |
+| 🦁 lion   | `U+1F981` | Leo     | 🐍 snake   | `U+1F40D` | Slyth   |
+| 🐺 wolf   | `U+1F43A` | Fenrir  | 🐼 panda   | `U+1F43C` | Bamboo  |
+| 🐻 bear   | `U+1F43B` | Oso     | 🦄 unicorn | `U+1F984` | Sparkle |
+| 🦅 eagle  | `U+1F985` | Aquila  | 🐸 frog    | `U+1F438` | Ribbit  |
+
+Each animal has unique mood emojis and sounds for 6 states: 😊 happy, 😐 neutral, 🤔 thinking, 😴 tired, 🤩 excited, 😢 sad.
+
+## 🎭 Personality System
+
+Animals are **visual identity only**. Personality is built by freely combining traits:
+
+**✨ Virtues**: curious, analytical, creative, patient, enthusiastic, loyal, strategic, honest, protective, adaptable, meticulous, humorous, empathetic, pragmatic, assertive
+
+**💀 Defects**: impatient, stubborn, overthinks, sarcastic, forgetful, blunt, perfectionist, anxious, lazy, dramatic, distracted, competitive
+
+Configuration in `configs/pet.yaml`:
+
+```yaml
+pet:
+  type: "fox"
+  name: "Kit"
+  traits:
+    - curious
+    - creative
+    - honest
+    - sarcastic # defect
+    - impatient # defect
+```
+
+Defects manifest subtly in responses, not as caricature.
 
 ## 🏗️ Architecture
 
@@ -45,114 +87,177 @@
        └────────┬──────────┘
                 │
        ┌────────▼────────┐
-       │    Qwen PET     │
+       │   🤖 Qwen PET   │
        │   MCP Server    │
        ├─────────────────┤
-       │ Decision Engine │
+       │ 🧠 Decision     │
+       │    Engine       │
+       │  🎭 Personality │
        ├─────┬─────┬─────┤
+       │ 📚  │ 🤖  │ 💬  │
        │ KB  │ AI  │ TG  │
-       └─────┴─────┴─────┘
+       └──┬──┴──┬──┴──┬──┘
+          │     │     │
+       Ollama OpenRouter Telegram
+       embeds  inference  escalation
 ```
 
-## 🚀 Getting Started
+**📊 Decision pipeline:**
+
+1. 📚 Query KB (chromem-go) — if similarity > 0.82, responds directly with personality
+2. 🤖 AI (Qwen 3.5 Flash via OpenRouter) — generates response with personality prompt, stores in KB
+3. 💬 Telegram — escalates to user, stores response in KB for future reference
+
+## 🚀 Quickstart
 
 ### 📋 Prerequisites
 
-- **Go 1.25+** — Backend runtime
-- **Python 3.12+** — CICD tooling (pre-commit hooks, bump2version, scripts)
-- **Git** — With submodule support
-- **Telegram Bot Token** — From [@BotFather](https://t.me/BotFather)
-- **OpenRouter API Key** — For Qwen 3.5 inference
+- **Go 1.25+**
+- **Docker** with Docker Compose (for Ollama)
+- **OpenRouter account** — [openrouter.ai](https://openrouter.ai) for API key
+- **Telegram Bot** — Create with [@BotFather](https://t.me/BotFather)
 
 ### 🔨 Installation
 
-1. **Clone the Repository**
-
-   ```bash
-   git clone --recurse-submodules https://github.com/JuanVilla424/qwen-pet.git
-   cd qwen-pet
-   ```
-
-2. **Initialize Submodules** (if cloned without `--recurse-submodules`)
-
-   ```bash
-   git submodule update --init --recursive
-   ```
-
-### 🔧 Environment Setup
-
-1. **Create Python Virtual Environment** (for CICD tooling)
-
-   ```bash
-   python -m venv venv
-   source venv/bin/activate
-   pip install --upgrade pip
-   pip install poetry
-   poetry lock
-   poetry install
-   ```
-
-2. **Configure Environment Variables**
-
-   ```bash
-   cp .env.template .env
-   # Edit .env with your credentials
-   ```
-
-3. **Build the Project**
-
-   ```bash
-   go build ./cmd/...
-   ```
-
-### 🛸 Pre-Commit Hooks
-
 ```bash
-source venv/bin/activate
-pre-commit install
-pre-commit install -t pre-commit
-pre-commit install -t pre-push
-pre-commit run --all-files
+# Clone
+git clone --recurse-submodules https://github.com/JuanVilla424/qwen-pet.git
+cd qwen-pet
+
+# Configure credentials
+cp .env.template .env
+# Edit .env: OPENROUTER_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_USER_ID
+
+# Full setup (build + Ollama + embeddings model)
+make setup
+
+# Run
+make run
 ```
 
-## 🛠️ Usage
+### 🔧 Manual step-by-step setup
 
-1. **Configure MCP** — Add qwen-pet as an MCP server in Claude Code or OpenCode configuration
-2. **Set Up Secrets** — Add `ACCESS_TOKEN` (PAT) in GitHub repository settings for workflow triggers
-3. **Version Bumping** — Add `[patch candidate]`, `[minor candidate]`, or `[major candidate]` to commit messages to trigger version bumps
-4. **Branch Workflow** — Push to `dev` → auto PR to `test` → `prod` → `main` with version tags and releases
+```bash
+# 1. Build
+make build
+
+# 2. Start Ollama and download embeddings model
+make ollama-setup
+
+# 3. Run (loads .env automatically)
+make run
+```
+
+## 🔌 MCP Configuration
+
+### Claude Code
+
+Add to `~/.claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "qwen-pet": {
+      "command": "/path/to/qwen-pet/bin/pet",
+      "env": {
+        "PET_CONFIG": "/path/to/qwen-pet/configs/pet.yaml",
+        "OPENROUTER_API_KEY": "sk-or-...",
+        "TELEGRAM_BOT_TOKEN": "...",
+        "TELEGRAM_USER_ID": "..."
+      }
+    }
+  }
+}
+```
+
+### OpenCode
+
+Add to MCP servers configuration with stdio transport pointing to the binary.
+
+## 🛠️ MCP Tools
+
+| Tool               | Description                                                                        | Parameters                                      |
+| ------------------ | ---------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `ask_pet`          | 🤔 Ask the pet a question. Searches KB, reasons with AI, or escalates via Telegram | `question`, `context` (optional)                |
+| `check_preference` | 📋 Check a specific preference from the KB                                         | `category`, `key`                               |
+| `store_decision`   | 💾 Store a decision in the KB for future reference                                 | `category`, `key`, `value`, `reason` (optional) |
+| `approve_artifact` | ✅ Request user approval for an artifact via Telegram                              | `type`, `description`, `file_path` (optional)   |
+
+## 💬 Telegram Commands
+
+| Command   | Description                      |
+| --------- | -------------------------------- |
+| `/start`  | 👋 Pet greeting with personality |
+| `/status` | 📊 Current mood + statistics     |
+| `/pet`    | 🐾 Selected animal info          |
+| `/help`   | ❓ Command list                  |
+
+When the pet escalates a question, it sends a message with context and waits for the user's response. The response is automatically stored in the KB.
 
 ## 📁 Project Structure
 
 ```
 qwen-pet/
-├── cmd/                    # Application entrypoints
-│   └── pet/                # Main binary
-├── internal/               # Private application code
-│   ├── mcp/                # MCP server implementation
-│   ├── kb/                 # Knowledge Base (chromem-go)
-│   ├── ai/                 # AI inference (OpenRouter/Qwen)
-│   ├── telegram/           # Telegram bot integration
-│   └── config/             # Configuration management
-├── web/                    # Vue 3 frontend
-├── configs/                # Configuration files
-├── data/                   # Runtime data (KB storage)
-├── scripts/                # CICD tooling submodule
-├── docs/                   # Documentation
-├── .github/                # GitHub Actions workflows
-├── go.mod                  # Go dependencies
-├── pyproject.toml          # Python CICD tooling config
-└── docker-compose.yml      # Container orchestration
+├── cmd/pet/main.go              # 🚀 Wire + entrypoint
+├── internal/
+│   ├── config/config.go         # ⚙️ YAML + env vars config
+│   ├── pet/
+│   │   ├── catalog.go           # 🐾 18 animals + 27 traits
+│   │   ├── personality.go       # 🎭 Build + WrapPrompt + FormatResponse
+│   │   ├── state.go             # 💾 Mood, stats, JSON persistence
+│   │   └── images.go            # 🖼️ Twemoji CDN fetcher
+│   ├── kb/
+│   │   ├── store.go             # 📚 chromem-go vector store wrapper
+│   │   └── embeddings.go        # 🧮 Ollama embedding factory
+│   ├── ai/
+│   │   ├── client.go            # 🌐 OpenRouter HTTP client
+│   │   └── decision.go          # 🧠 KB -> AI -> Telegram pipeline
+│   ├── mcp/
+│   │   ├── server.go            # 🔌 MCP server stdio transport
+│   │   └── tools.go             # 🛠️ 4 tools with typed handlers
+│   └── telegram/
+│       ├── bot.go               # 💬 Polling + escalation
+│       └── handlers.go          # 📨 Commands + default handler
+├── configs/pet.yaml             # ⚙️ Default configuration
+├── Makefile                     # 🔨 Build, test, setup
+├── Dockerfile                   # 🐳 Multi-stage build
+├── docker-compose.yml           # 🐳 Pet + Ollama
+└── data/                        # 💾 Runtime (KB gob + pet state JSON)
+```
+
+## 🧑‍💻 Development
+
+```bash
+# Tests
+make test
+
+# Lint
+make lint
+
+# Build
+make build
+
+# Docker
+make docker-up    # 🟢 Start all services
+make docker-down  # 🔴 Stop all services
+```
+
+### 🛸 Pre-commit hooks
+
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+pre-commit install
+pre-commit install -t pre-push
 ```
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) and follow the [Code of Conduct](CODE_OF_CONDUCT.md).
-
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
+2. Create a branch: `git checkout -b feature/your-feature`
 3. Commit using conventional commits: `feat(scope): description`
-4. Push and open a PR into `dev` branch
+4. Push and open a PR to `dev`
 
 ## 📫 Contact
 
@@ -162,4 +267,4 @@ For inquiries or support, please open an issue or contact [r6ty5r296it6tl4eg5m.c
 
 ## 📜 License
 
-2026 - This project is licensed under the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.en.html). You are free to use, modify, and distribute this software under the terms of the GPL-3.0 license. For more details, please refer to the [LICENSE](LICENSE) file included in this repository.
+2026 - This project is licensed under the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.en.html). Free to use, modify, and distribute under the terms of GPL-3.0. See [LICENSE](LICENSE) for details.
