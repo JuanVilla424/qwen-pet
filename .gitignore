@@ -125,6 +125,29 @@ $RECYCLE.BIN/
 *.swp
 *~
 
+# Go
+bin/
+*.exe
+*.exe~
+*.dll
+*.dylib
+*.test
+*.out
+vendor/
+
+# Go workspace
+go.work
+go.work.sum
+
+# qwen-pet data
+data/
+
+# Claude Code
+CLAUDE.md
+CLAUDE.local.md
+CONTEXT.md
+.claude/
+
 # IDE specific
 *.iml
 *.suo

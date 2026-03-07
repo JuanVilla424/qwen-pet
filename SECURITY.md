@@ -1,6 +1,6 @@
 # 🔒 Security Policy
 
-Security Policy for **GitHub CICD Template** repository includes all required compliance matrix and artifact mapping.
+Security Policy for **qwen-pet** repository includes all required compliance matrix and artifact mapping.
 
 ## 🧮 Supported Versions
 
@@ -8,8 +8,7 @@ We provide security updates for the following versions of our project:
 
 | Version | Status      | Secure |
 | ------- | ----------- | ------ |
-| 1.0.1   | End-of-life | No     |
-| >1.0.4  | Supported   | Yes    |
+| 0.1.0   | Development | Yes    |
 
 ## 🛡️ Security Practices
 
@@ -38,7 +37,7 @@ If you discover a security vulnerability within this project, please follow thes
 ## 🛰️ Additional Resources
 
 - [OWASP Security Guidelines](https://owasp.org/)
-- [AWS Security Best Practices](https://aws.amazon.com/security/security-best-practices/)
+- [Go Security Best Practices](https://go.dev/doc/security/best-practices)
 
 Thank you for helping us keep this project secure!
 

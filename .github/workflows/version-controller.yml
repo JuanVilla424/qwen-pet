@@ -27,6 +27,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: true
+          token: ${{ secrets.ACCESS_TOKEN }}
       - name: Set up Python
         id: setup_python
         uses: actions/setup-python@v5
@@ -45,9 +47,9 @@ jobs:
         id: get_commit
         run: |
           COMMIT_MESSAGE=$(git log -1 --pretty=%B)
-          echo "commit_message<<EOF" >> $GITHUB_OUTPUT
+          echo "commit_message<<COMMIT_MSG_DELIMITER" >> $GITHUB_OUTPUT
           echo "$COMMIT_MESSAGE" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "COMMIT_MSG_DELIMITER" >> $GITHUB_OUTPUT
       - name: Determine Branch
         id: determine_branch
         run: |
@@ -85,15 +87,14 @@ jobs:
           git diff --cached --quiet || git commit -m "docs(core): update changelog"
       - name: Check for Forbidden Character
         id: check_arrow
+        env:
+          COMMIT_MESSAGE: ${{ steps.get_commit.outputs.commit_message }}
         run: |
-          COMMIT_MSG="${COMMIT_MESSAGE}"
-          if [[ "$COMMIT_MSG" == *"→"* && "$COMMIT_MSG" == *"Bump version:"* ]]; then
+          if [[ "$COMMIT_MESSAGE" == *"→"* && "$COMMIT_MESSAGE" == *"Bump version:"* ]]; then
             echo "contains_arrow=true" >> $GITHUB_OUTPUT
           else
             echo "contains_arrow=false" >> $GITHUB_OUTPUT
           fi
-        env:
-          COMMIT_MESSAGE: ${{ steps.get_commit.outputs.commit_message }}
       - name: Create Tag
         id: create_tag
         if: steps.check_arrow.outputs.contains_arrow == 'true'
@@ -237,9 +238,9 @@ jobs:
           fi
 
           {
-            echo "body<<RELEASE_NOTES_EOF"
+            echo "body<<RELEASE_NOTES_DELIMITER"
             echo -e "$BODY"
-            echo "RELEASE_NOTES_EOF"
+            echo "RELEASE_NOTES_DELIMITER"
           } >> "$GITHUB_OUTPUT"
         env:
           REPO_FULL: ${{ env.REPO_FULL }}

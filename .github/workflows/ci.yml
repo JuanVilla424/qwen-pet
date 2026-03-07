@@ -17,12 +17,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          token: ${{ secrets.ACCESS_TOKEN }}
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install dependencies
+      - name: Install Python CICD tooling
         run: |
           python -m venv venv
           source venv/bin/activate
@@ -30,30 +37,28 @@ jobs:
           pip install poetry
           poetry lock
           poetry install
-      - name: Format check with Black
+      - name: Go format check
         run: |
-          source venv/bin/activate
-          black --check scripts/
-      - name: Lint with Pylint
+          UNFORMATTED=$(gofmt -l .)
+          if [ -n "$UNFORMATTED" ]; then
+            echo "Files not formatted:"
+            echo "$UNFORMATTED"
+            exit 1
+          fi
+      - name: Go vet
+        run: go vet ./...
+      - name: Go tests
         run: |
-          source venv/bin/activate
-          pylint $(git ls-files '*.py')
-      - name: Run tests
-        run: |
-          source venv/bin/activate
-          pytest --cov=app --cov-report=xml:coverage.xml || [$? -eq 5]
-        continue-on-error: true
-      - name: List files to verify coverage.xml
-        run: |
-          ls -la *.xml
-          cat *.xml
-        continue-on-error: true
+          go test -v -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out
+      - name: Go build
+        run: go build ./cmd/...
       - name: Upload coverage to Codecov
         if: success()
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage.xml
+          files: coverage.out
           flags: unittests
           name: codecov-umbrella
         continue-on-error: true
@@ -62,14 +67,8 @@ jobs:
         with:
           results_file: scoreboard-results.json
           results_format: json
-          #publish_results: true
         continue-on-error: true
-      - name: List files to verify scoreboard-results.json
-        run: |
-          ls -la scoreboard-results.json
-          cat scoreboard-results.json
-        continue-on-error: true
-      - name: Upload Scorecard Results to Security Scorecards API
+      - name: Upload Scorecard Results
         if: always()
         run: |
           curl -X POST \

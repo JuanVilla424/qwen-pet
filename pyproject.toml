@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "github-cicd-template"
-version = "1.0.14"
-description = "Github CICD Template Repository"
+name = "qwen-pet"
+version = "0.1.0"
+description = "Personal Entertainment Tool — AI-powered context oracle with persistent knowledge base, Telegram escalation, and native MCP integration for Claude Code and OpenCode"
 authors = ["B <g46327wsj1.marbling129@passinbox.com>"]
 license = "Apache 2.0"
 readme = "README.md"
@@ -27,7 +27,6 @@ pytest-cov = { version = "^6.1.1", optional = true }
 coverage = "^7.2.5"
 
 [tool.poetry.extras]
-migrations = ["alembic"]
 testing = ["pytest", "httpx"]
 
 [tool.black]

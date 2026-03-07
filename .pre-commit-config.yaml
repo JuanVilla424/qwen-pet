@@ -10,21 +10,6 @@ repos:
       - id: check-yaml
         types: [yaml]
         files: \.(yaml)$
-  - repo: https://github.com/psf/black
-    rev: 25.1.0
-    hooks:
-      - id: black
-        language_version: python3
-  - repo: https://github.com/PyCQA/pylint
-    rev: v3.3.6
-    hooks:
-      - id: pylint
-        name: pylint
-        entry: pylint
-        language: system
-        types: [python]
-        args: [--rcfile=.pylintrc, .]
-        exclude: ^node_modules/
   - repo: https://github.com/hadolint/hadolint
     rev: v2.13.1-beta
     hooks:
@@ -36,6 +21,17 @@ repos:
         files: ^Dockerfile$
   - repo: local
     hooks:
+      - id: gofmt
+        name: gofmt
+        entry: gofmt -l -w
+        language: system
+        types: [go]
+      - id: govet
+        name: govet
+        entry: go vet ./...
+        language: system
+        types: [go]
+        pass_filenames: false
       - id: yaml-format
         name: yaml-format
         entry: python scripts/format_yaml/main.py
@@ -62,7 +58,7 @@ repos:
         entry: python scripts/validate_docker_compose/main.py
         language: system
         types: [yaml]
-        files: ^docker-compose(\.dev|\.prod)?\.yml$
+        files: ^docker-compose\.yml$
       - id: validate-commit
         name: validate-commit
         entry: python scripts/control_commit/main.py --log-level=DEBUG
@@ -76,7 +72,6 @@ repos:
         always_run: true
         language: system
         pass_filenames: false
-        # args: [--commit_msg_file, .git/COMMIT_EDITMSG]
         stages: [pre-push]
       - id: bump-year
         name: bump-year

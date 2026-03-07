@@ -1,10 +1,10 @@
-# 🤝 Contributing to github-cicd-template
+# 🤝 Contributing to qwen-pet
 
-We welcome contributions to github-cicd-template! To make sure the process goes smoothly, please follow these guidelines:
+We welcome contributions to qwen-pet! To make sure the process goes smoothly, please follow these guidelines:
 
 ## 📋 Code of Conduct
 
-Please note that all participants in our project are expected to follow our [Code of Conduct](#-code-of-conduct). Make sure to review it before contributing.
+Please note that all participants in our project are expected to follow our [Code of Conduct](CODE_OF_CONDUCT.md). Make sure to review it before contributing.
 
 ## 🛠 How to Contribute
 
@@ -14,35 +14,43 @@ Please note that all participants in our project are expected to follow our [Cod
 2. **Create a new branch**:
    Use a descriptive branch name for your feature or bugfix:
 
+   ```bash
    git checkout -b feature/your-feature-name
+   ```
 
 3. **Make your changes**:
    Implement your feature or fix the bug in your branch. Make sure to include tests where applicable and follow coding standards.
 
 4. **Test your changes**:
-   Run the test suite to ensure your changes don’t break any functionality:
 
-   docker-compose exec backend pytest # For backend tests
-   docker-compose exec frontend npm test # For frontend tests
+   ```bash
+   go fmt ./...
+   go vet ./...
+   go test -v ./...
+   ```
 
 5. **Commit your changes**:
-   Use meaningful commit messages that explain what you have done:
+   Use conventional commit messages:
 
-   git commit -m "Add feature/fix: Description of changes"
+   ```bash
+   git commit -m "feat(scope): description of changes"
+   ```
 
 6. **Push your changes**:
-   Push your changes to your fork:
 
+   ```bash
    git push origin feature/your-feature-name
+   ```
 
 7. **Submit a Pull Request**:
-   Create a pull request on the main repository, detailing the changes you’ve made. Link any issues your changes resolve and provide context.
+   Create a pull request into the `dev` branch, detailing the changes you've made. Link any issues your changes resolve and provide context.
 
 ## 📑 Guidelines for Contributions
 
-- **Lint your code** before submitting a pull request. We use [ESLint](https://eslint.org/) for frontend and [pylint](https://www.pylint.org/) for backend linting.
+- **Format your code** with `gofmt` before submitting a pull request.
+- **Vet your code** with `go vet ./...` to catch common issues.
 - Ensure **test coverage** for your code. Uncovered code may delay the approval process.
-- Write clear, concise **commit messages**.
+- Write clear, concise **commit messages** following [conventional commits](https://www.conventionalcommits.org/).
 
 Thank you for helping improve!
 

@@ -1,229 +1,162 @@
-# 📄 GitHub CI/CD Template
+# 🤖 Qwen PET — Personal Entertainment Tool
 
-![CI/CD](https://img.shields.io/badge/CI/CD-Pipeline-blue)
-![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=fff)
-![Python](https://img.shields.io/badge/Python-3.11%2B-blue.svg)
-![Build Status](https://github.com/JuanVilla424/github-cicd-template/actions/workflows/ci.yml/badge.svg?branch=main)
-![Status](https://img.shields.io/badge/Status-Stable-green.svg)
+![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=fff)
+![Qwen](https://img.shields.io/badge/Qwen-3.5-7C3AED)
+![MCP](https://img.shields.io/badge/MCP-Server-blue)
+![Telegram](https://img.shields.io/badge/Telegram-Bot-26A5E4?logo=telegram&logoColor=fff)
+![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=fff)
+![Build Status](https://github.com/JuanVilla424/qwen-pet/actions/workflows/ci.yml/badge.svg?branch=main)
+![Status](https://img.shields.io/badge/Status-Development-yellow.svg)
 ![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)
 
-Welcome to the **GitHub CI/CD Template** repository! This project provides a robust and flexible CI/CD pipeline setup using GitHub Actions, tailored for project using Python for backend, node frontend, docker-compose or Dockerfile. Leverage this template to automate your development workflow, from testing and building to deployment and monitoring.
-
-<img src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fwww.pngkey.com%2Fpng%2Ffull%2F178-1787243_github-icon-png.png&f=1&nofb=1&ipt=913bc5d745baa725efe14b20bdf6ca3f91044c2be909e8504cc79f13dc0b1729&ipo=images" width="112" alt="CI/CD">
+**Qwen PET** is a persistent AI intermediary agent that integrates with Claude Code and OpenCode via MCP (Model Context Protocol). It maintains a Knowledge Base of developer preferences, architectural decisions, and project patterns — responding autonomously when confident, escalating to the developer via Telegram when it needs input.
 
 ## 📚 Table of Contents
 
 - [Features](#-features)
+- [Architecture](#-architecture)
 - [Getting Started](#-getting-started)
   - [Prerequisites](#-prerequisites)
   - [Installation](#-installation)
   - [Environment Setup](#-environment-setup)
   - [Pre-Commit Hooks](#-pre-commit-hooks)
-  - [Extra Steps](#-extra-steps)
 - [Usage](#-usage)
+- [Project Structure](#-project-structure)
 - [Contributing](#-contributing)
 - [License](#-license)
-- [Contact](#-contact)
 
 ## 🌟 Features
 
-- **Automated Testing:** Run tests automatically on each push and pull request.
-- **Continuous Deployment:** Deploy your application seamlessly to your chosen platform.
-- **Code Quality Checks:** Enforce coding standards with linting and formatting tools.
-- **Build Optimization:** Optimize build processes for faster deployment cycles.
-- **Notifications:** Receive updates and alerts on pipeline status via email or chat integrations.
-- **Automated Version Control:** Automatic version bumping, tagging, and promotion across branches (dev → test → prod → main).
-- **Automated Release Notes:** GitHub Releases with categorized changelogs generated from conventional commits (Features, Bug Fixes, Refactors, etc.).
-- **Changelog Generation:** Automatic CHANGELOG.md updates on every version bump via pre-commit hooks.
+- **🧠 Knowledge Base** — Persistent vector store (chromem-go) with developer preferences, decisions, and patterns
+- **🔌 MCP Server** — stdio transport, integrates with Claude Code and OpenCode as a tool provider
+- **🤖 AI Decision Engine** — Qwen 3.5 via OpenRouter API for intelligent responses when KB doesn't have enough context
+- **💬 Telegram Bot** — Escalation channel with inline keyboards for approval workflows
+- **🌐 Web UI** — Vue 3 + TypeScript + Tailwind CSS configuration panel
+- **📊 Confidence Scoring** — Automatic routing: KB direct → AI-assisted → Telegram escalation
+- **🔄 Context Persistence** — No more losing decisions between sessions
+
+## 🏗️ Architecture
+
+```
+┌─────────────┐     ┌─────────────┐
+│ Claude Code │     │  OpenCode   │
+└──────┬──────┘     └──────┬──────┘
+       │    MCP (stdio)    │
+       └────────┬──────────┘
+                │
+       ┌────────▼────────┐
+       │    Qwen PET     │
+       │   MCP Server    │
+       ├─────────────────┤
+       │ Decision Engine │
+       ├─────┬─────┬─────┤
+       │ KB  │ AI  │ TG  │
+       └─────┴─────┴─────┘
+```
 
 ## 🚀 Getting Started
 
 ### 📋 Prerequisites
 
-**Before you begin, ensure you have met the following requirements**:
-
-- **GitHub Account:** You need a GitHub account to use GitHub Actions.
-- **Python 3.12+:** Ensure Python is installed on your local machine.
-- **Git:** Install [Git](https://git-scm.com/) to clone the repository.
-- **NVM:** (Optional) Node.js installation environment versions control
-- **Node.js 22.x+**: (Optional) (Required to Push) Used as lint orchestration manager in pre-commit and pre-push
+- **Go 1.25+** — Backend runtime
+- **Python 3.12+** — CICD tooling (pre-commit hooks, bump2version, scripts)
+- **Git** — With submodule support
+- **Telegram Bot Token** — From [@BotFather](https://t.me/BotFather)
+- **OpenRouter API Key** — For Qwen 3.5 inference
 
 ### 🔨 Installation
 
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/JuanVilla424/github-cicd-template.git
+   git clone --recurse-submodules https://github.com/JuanVilla424/qwen-pet.git
+   cd qwen-pet
    ```
 
-2. Navigate to the Project Directory
+2. **Initialize Submodules** (if cloned without `--recurse-submodules`)
+
    ```bash
-    cd github-cicd-template
+   git submodule update --init --recursive
    ```
 
 ### 🔧 Environment Setup
 
-**Mandatory: Setting Up a Python Virtual Environment**
-
-Setting up a Python virtual environment ensures that dependencies are managed effectively and do not interfere with other projects.
-
-1. **Create a Virtual Environment**
+1. **Create Python Virtual Environment** (for CICD tooling)
 
    ```bash
    python -m venv venv
-   ```
-
-2. **Activate the Virtual Environment**
-
-   On Unix or MacOS:
-
-   ```bash
    source venv/bin/activate
-   ```
-
-   On Windows:
-
-   ```bash
-    .\venv\Scripts\activate
-   ```
-
-   - or
-
-   ```bash
-    powershell.exe -ExecutionPolicy Bypass -File .\venv\Scripts\Activate.ps1
-   ```
-
-3. **Upgrade pip**
-
-   ```bash
    pip install --upgrade pip
-   ```
-
-4. **Install Dependencies**
-
-   ```bash
-   pip install -r requirements.txt
    pip install poetry
    poetry lock
    poetry install
    ```
 
-   - Deactivate the Virtual Environment
-
-   When you're done, deactivate the environment:
+2. **Configure Environment Variables**
 
    ```bash
-    deactivate
+   cp .env.template .env
+   # Edit .env with your credentials
    ```
 
-5. **Docker Extra Steps**: Install Scoop and then install hadolint using scoop, refer to [Extra Steps](#-extra-steps)
+3. **Build the Project**
+
+   ```bash
+   go build ./cmd/...
+   ```
 
 ### 🛸 Pre-Commit Hooks
 
-**Install and check pre-commit hooks**: MD files changes countermeasures, python format, python lint, yaml format, yaml lint, version control hook, changelog auto-generation
-
 ```bash
+source venv/bin/activate
 pre-commit install
 pre-commit install -t pre-commit
 pre-commit install -t pre-push
-pre-commit autoupdate
 pre-commit run --all-files
 ```
 
-### 📌 Extra Steps
-
-1. **Docker**:
-   - Using MacOs or Linux:
-     ```bash
-     brew install hadolint
-     ```
-   - On Windows **as non-admin user**:
-     ```bash
-     Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-     Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
-     scoop install hadolint
-     ```
-
 ## 🛠️ Usage
 
-**To utilize the CI/CD pipeline, follow these steps**:
+1. **Configure MCP** — Add qwen-pet as an MCP server in Claude Code or OpenCode configuration
+2. **Set Up Secrets** — Add `ACCESS_TOKEN` (PAT) in GitHub repository settings for workflow triggers
+3. **Version Bumping** — Add `[patch candidate]`, `[minor candidate]`, or `[major candidate]` to commit messages to trigger version bumps
+4. **Branch Workflow** — Push to `dev` → auto PR to `test` → `prod` → `main` with version tags and releases
 
-1. **Configure GitHub Actions**
-   - Navigate to the .github/workflows/ directory.
-   - Customize the ci.yml file according to your project's requirements.
-   - Customize the python.yml file to format and lint python code.
-   - Customize the node.yml file to format and lint node.js code if you are hosting frontend.
-   - Customize the release-controller file to add or remove **[backend, frontend, docker deployment, database]**
+## 📁 Project Structure
 
-2. **Set Up Secrets**
-   - Go to your GitHub repository settings.
-   - Navigate to Secrets and add necessary secrets like CODECOV_KEY, etc.
-   - Add `ACCESS_TOKEN` (Personal Access Token) for cross-repository submodule access and workflow triggers.
-
-3. **Triggering the Pipeline**
-   - Push to Branches: Pushing code to dev, test, prod, or main branches will trigger the pipeline.
-   - Pull Requests: Opening or updating pull requests will run tests and checks.
-
-4. **Version Bumping & Releases**
-   - Add `[patch candidate]`, `[minor candidate]`, or `[major candidate]` to your commit message to trigger a version bump.
-   - The pre-push hooks will automatically bump the version in `pyproject.toml` and amend the commit.
-   - The Version Controller workflow creates tags and promotion PRs across the branch chain (dev → test → prod → main).
-   - On main, a GitHub Release is automatically created with categorized release notes parsed from conventional commits.
-
-5. **Monitoring Pipeline Status**
-   - Check the Actions tab in your GitHub repository to monitor the status of your workflows.
-   - Integrate notifications with Slack, Email, or other communication tools for real-time updates.
+```
+qwen-pet/
+├── cmd/                    # Application entrypoints
+│   └── pet/                # Main binary
+├── internal/               # Private application code
+│   ├── mcp/                # MCP server implementation
+│   ├── kb/                 # Knowledge Base (chromem-go)
+│   ├── ai/                 # AI inference (OpenRouter/Qwen)
+│   ├── telegram/           # Telegram bot integration
+│   └── config/             # Configuration management
+├── web/                    # Vue 3 frontend
+├── configs/                # Configuration files
+├── data/                   # Runtime data (KB storage)
+├── scripts/                # CICD tooling submodule
+├── docs/                   # Documentation
+├── .github/                # GitHub Actions workflows
+├── go.mod                  # Go dependencies
+├── pyproject.toml          # Python CICD tooling config
+└── docker-compose.yml      # Container orchestration
+```
 
 ## 🤝 Contributing
 
-**Contributions are welcome! To contribute to this repository, please follow these steps**:
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) and follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-1. **Fork the Repository**
-
-2. **Create a Feature Branch**
-
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-3. **Commit Your Changes**
-
-   ```bash
-   git commit -m "feat(<scope>): your feature commit message - lower case"
-   ```
-
-4. **Push to the Branch**
-
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-
-5. **Open a Pull Request into** `dev` **branch**
-
-Please ensure your contributions adhere to the Code of Conduct and Contribution Guidelines.
-
-### 🛠️ Adding a New Workflow
-
-1. **Create a New Workflow File**
-
-   ```bash
-   touch .github/workflows/new-workflow.yml
-   ```
-
-2. **Define the Workflow**
-
-   Customize the workflow according to your needs, using existing workflows as references.
-
-3. **Commit and Push**
-   ```bash
-   git add .github/workflows/new-workflow.yml
-   git commit -m "chore(core): added new workflow - lower case"
-   git push origin feature/your-feature-name
-   ```
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Commit using conventional commits: `feat(scope): description`
+4. Push and open a PR into `dev` branch
 
 ## 📫 Contact
 
-For any inquiries or support, please open an issue or contact [r6ty5r296it6tl4eg5m.constant214@passinbox.com](mailto:r6ty5r296it6tl4eg5m.constant214@passinbox.com).
+For inquiries or support, please open an issue or contact [r6ty5r296it6tl4eg5m.constant214@passinbox.com](mailto:r6ty5r296it6tl4eg5m.constant214@passinbox.com).
 
 ---
 
