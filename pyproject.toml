@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "qwen-pet"
-version = "0.1.1"
+version = "0.1.2"
 description = "Personal Entertainment Tool — AI-powered context oracle with persistent knowledge base, Telegram escalation, and native MCP integration for Claude Code and OpenCode"
 authors = ["B <g46327wsj1.marbling129@passinbox.com>"]
 license = "Apache 2.0"
