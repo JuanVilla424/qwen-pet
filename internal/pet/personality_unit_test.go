@@ -24,7 +24,7 @@ func TestBuildPersonality(t *testing.T) {
 	animal := newTestAnimal()
 	traits := newTestTraits()
 
-	p := BuildPersonality(animal, traits, "Kit")
+	p := BuildPersonality(animal, traits, "Kit", nil)
 
 	if p.Name != "Kit" {
 		t.Errorf("Name = %q, want %q", p.Name, "Kit")
@@ -53,7 +53,7 @@ func TestBuildPersonality_OnlyVirtues(t *testing.T) {
 	animal := newTestAnimal()
 	traits := []Trait{{ID: "honest", Name: "Honest", IsDefect: false, PromptHint: "You speak the truth."}}
 
-	p := BuildPersonality(animal, traits, "Kit")
+	p := BuildPersonality(animal, traits, "Kit", nil)
 
 	if !strings.Contains(p.Description, "strengths") {
 		t.Error("Description should contain strengths section")
@@ -67,7 +67,7 @@ func TestBuildPersonality_OnlyDefects(t *testing.T) {
 	animal := newTestAnimal()
 	traits := []Trait{{ID: "lazy", Name: "Lazy", IsDefect: true, PromptHint: "You take shortcuts."}}
 
-	p := BuildPersonality(animal, traits, "Kit")
+	p := BuildPersonality(animal, traits, "Kit", nil)
 
 	if strings.Contains(p.Description, "strengths") {
 		t.Error("Description should NOT contain strengths when no virtues")
@@ -80,7 +80,7 @@ func TestBuildPersonality_OnlyDefects(t *testing.T) {
 func TestBuildPersonality_NoTraits(t *testing.T) {
 	animal := newTestAnimal()
 
-	p := BuildPersonality(animal, []Trait{}, "Kit")
+	p := BuildPersonality(animal, []Trait{}, "Kit", nil)
 
 	if !strings.Contains(p.Description, "Kit") {
 		t.Error("Description should still contain pet name")
@@ -93,7 +93,7 @@ func TestBuildPersonality_NoTraits(t *testing.T) {
 func TestWrapPrompt(t *testing.T) {
 	animal := newTestAnimal()
 	traits := newTestTraits()
-	p := BuildPersonality(animal, traits, "Kit")
+	p := BuildPersonality(animal, traits, "Kit", nil)
 
 	prompt := WrapPrompt(p, MoodHappy, "what is Go?", "Go is a language")
 
@@ -116,7 +116,7 @@ func TestWrapPrompt(t *testing.T) {
 
 func TestWrapPrompt_NoKBContext(t *testing.T) {
 	animal := newTestAnimal()
-	p := BuildPersonality(animal, newTestTraits(), "Kit")
+	p := BuildPersonality(animal, newTestTraits(), "Kit", nil)
 
 	prompt := WrapPrompt(p, MoodThinking, "test question", "")
 
@@ -146,7 +146,7 @@ func TestFormatResponse(t *testing.T) {
 func TestPersonality_TraitNames(t *testing.T) {
 	animal := newTestAnimal()
 	traits := newTestTraits()
-	p := BuildPersonality(animal, traits, "Kit")
+	p := BuildPersonality(animal, traits, "Kit", nil)
 
 	names := p.TraitNames()
 
@@ -161,14 +161,14 @@ func TestPersonality_TraitNames(t *testing.T) {
 func TestPersonality_HasDefects(t *testing.T) {
 	animal := newTestAnimal()
 
-	withDefects := BuildPersonality(animal, newTestTraits(), "Kit")
+	withDefects := BuildPersonality(animal, newTestTraits(), "Kit", nil)
 	if !withDefects.HasDefects() {
 		t.Error("HasDefects() should return true when defects present")
 	}
 
 	noDefects := BuildPersonality(animal, []Trait{
 		{ID: "honest", IsDefect: false},
-	}, "Kit")
+	}, "Kit", nil)
 	if noDefects.HasDefects() {
 		t.Error("HasDefects() should return false when no defects")
 	}

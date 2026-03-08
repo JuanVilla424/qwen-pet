@@ -11,17 +11,19 @@ type Personality struct {
 	Animal      *Animal
 	Name        string
 	Traits      []Trait
-	Description string // pre-compiled personality description for prompts
-	Virtues     string // pre-compiled virtues section
-	Defects     string // pre-compiled defects section
+	Soul        []string // identity words that grow over time
+	Description string   // pre-compiled personality description for prompts
+	Virtues     string   // pre-compiled virtues section
+	Defects     string   // pre-compiled defects section
 }
 
-// BuildPersonality compiles an animal + traits + name into a reusable Personality.
-func BuildPersonality(animal *Animal, traits []Trait, name string) *Personality {
+// BuildPersonality compiles an animal + traits + name + soul into a reusable Personality.
+func BuildPersonality(animal *Animal, traits []Trait, name string, soul []string) *Personality {
 	p := &Personality{
 		Animal: animal,
 		Name:   name,
 		Traits: traits,
+		Soul:   soul,
 	}
 
 	var virtueHints []string
@@ -62,6 +64,13 @@ func WrapPrompt(p *Personality, mood Mood, question, kbContext string) string {
 	moodEmoji := p.Animal.Moods[mood]
 	sound := p.Animal.Sounds[mood]
 	prompt.WriteString(fmt.Sprintf("Your current mood: %s %s %s\n\n", mood.String(), moodEmoji, sound))
+
+	// Soul
+	if len(p.Soul) > 0 {
+		prompt.WriteString("Your soul: ")
+		prompt.WriteString(FormatSoul(p.Soul))
+		prompt.WriteString("\nThese words are your essence — they shape how you feel, think, and respond.\n\n")
+	}
 
 	// Instructions
 	prompt.WriteString("Instructions:\n")

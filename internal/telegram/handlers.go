@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/JuanVilla424/qwen-pet/internal/pet"
 	"github.com/go-telegram/bot"
@@ -11,90 +12,118 @@ import (
 )
 
 func (b *Bot) handleStart(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
-	emoji := b.animal.Emoji
-	mood := b.petState.GetMood()
-	sound := b.animal.Sounds[mood]
+	msg := b.askAI(ctx, "A new user just started a conversation with you. Greet them warmly, introduce yourself briefly, and mention the available commands: /status, /pet, /help")
 
-	msg := fmt.Sprintf(
-		"%s *Hey there!* %s\n\n"+
-			"I'm your personal knowledge pet. "+
-			"I help your AI tools remember your preferences and decisions.\n\n"+
-			"%s\n\n"+
-			"Commands:\n"+
-			"/status \u2014 my current state\n"+
-			"/pet \u2014 about me\n"+
-			"/help \u2014 all commands",
-		emoji, emoji, sound,
-	)
-
-	tgBot.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		Text:      msg,
-		ParseMode: models.ParseModeMarkdown,
+	_, err := tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: update.Message.Chat.ID,
+		Text:   msg,
 	})
+	if err != nil {
+		slog.Error("failed to send /start response", "error", err)
+	}
 }
 
 func (b *Bot) handleStatus(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
-	mood := b.petState.GetMood()
-	moodEmoji := b.animal.Moods[mood]
-	sound := b.animal.Sounds[mood]
 	stats := b.petState.Stats()
-
-	msg := fmt.Sprintf(
-		"%s %s %s\n\n```\n%s\n```\n\n%s",
-		b.animal.Emoji, moodEmoji, mood.String(),
-		stats,
-		sound,
-	)
+	prompt := fmt.Sprintf("Here are your current stats:\n%s\n\nComment on your own status with personality. Be brief.", stats)
+	msg := b.askAI(ctx, prompt)
 
 	tgBot.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		Text:      msg,
-		ParseMode: models.ParseModeMarkdown,
+		ChatID: update.Message.Chat.ID,
+		Text:   msg,
 	})
 }
 
 func (b *Bot) handlePetInfo(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
-	emoji := b.animal.Emoji
-
-	msg := fmt.Sprintf(
-		"%s *About me*\n\n"+
-			"Type: %s %s\n"+
-			"Name: configured in pet.yaml\n\n"+
-			"I live in your MCP server and help Claude Code / OpenCode "+
-			"remember your preferences, conventions, and past decisions.",
-		emoji, b.animal.Type, emoji,
-	)
+	msg := b.askAI(ctx, "The user wants to know about you. Describe yourself: your animal type, your name, your personality traits (both strengths and weaknesses), and what you do as a knowledge pet.")
 
 	tgBot.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		Text:      msg,
-		ParseMode: models.ParseModeMarkdown,
+		ChatID: update.Message.Chat.ID,
+		Text:   msg,
 	})
 }
 
 func (b *Bot) handleHelp(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
-	msg := fmt.Sprintf(
-		"%s *Commands*\n\n"+
-			"/start \u2014 welcome message\n"+
-			"/status \u2014 pet mood + stats\n"+
-			"/pet \u2014 pet info\n"+
-			"/help \u2014 this message\n\n"+
-			"_When I need your help, I'll send you a question. "+
-			"Just reply with your answer!_",
-		b.animal.Emoji,
-	)
+	msg := b.askAI(ctx, "List your available commands and what each does: /start (greeting), /status (your mood and stats), /pet (about you), /help (command list). Also mention that when you need help, you'll ask a question and the user should reply directly.")
 
 	tgBot.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		Text:      msg,
-		ParseMode: models.ParseModeMarkdown,
+		ChatID: update.Message.Chat.ID,
+		Text:   msg,
+	})
+}
+
+func (b *Bot) handleReroll(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	profile := pet.RandomProfile()
+
+	b.mu.Lock()
+	b.pendingReroll = profile
+	b.mu.Unlock()
+
+	msg := fmt.Sprintf("Rolling the dice...\n\n%s\n\nAccept? (si/no)", profile.Summary())
+	tgBot.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: update.Message.Chat.ID,
+		Text:   msg,
 	})
 }
 
 func (b *Bot) handleDefault(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
 	if update.Message == nil || update.Message.Text == "" {
 		return
+	}
+
+	// Check for pending reroll accept/reject
+	b.mu.Lock()
+	reroll := b.pendingReroll
+	b.mu.Unlock()
+
+	if reroll != nil {
+		text := strings.ToLower(strings.TrimSpace(update.Message.Text))
+		if text == "si" || text == "sí" || text == "yes" || text == "s" || text == "y" {
+			// Accept: save profile, update bot state
+			if err := reroll.SaveProfile(b.profilePath); err != nil {
+				slog.Error("failed to save rerolled profile", "error", err)
+				tgBot.SendMessage(ctx, &bot.SendMessageParams{
+					ChatID: update.Message.Chat.ID,
+					Text:   "Error saving profile. Try /reroll again.",
+				})
+				b.mu.Lock()
+				b.pendingReroll = nil
+				b.mu.Unlock()
+				return
+			}
+
+			animal, _ := pet.GetAnimal(reroll.Type)
+			traits, _ := pet.ResolveTraits(reroll.Traits)
+			personality := pet.BuildPersonality(animal, traits, reroll.Name, reroll.Soul)
+
+			b.mu.Lock()
+			b.animal = animal
+			b.personality = personality
+			b.pendingReroll = nil
+			b.mu.Unlock()
+
+			slog.Info("pet rerolled", "name", reroll.Name, "type", reroll.Type)
+			msg := b.askAI(ctx, "Your identity just changed! Introduce yourself with your new personality. Be excited about your transformation.")
+			tgBot.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID: update.Message.Chat.ID,
+				Text:   msg,
+			})
+			return
+		} else if text == "no" || text == "n" {
+			b.mu.Lock()
+			b.pendingReroll = nil
+			b.mu.Unlock()
+
+			tgBot.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID: update.Message.Chat.ID,
+				Text:   "Rejected. Use /reroll to roll again.",
+			})
+			return
+		}
+		// If not si/no, clear reroll and process as normal message
+		b.mu.Lock()
+		b.pendingReroll = nil
+		b.mu.Unlock()
 	}
 
 	b.mu.Lock()
@@ -107,19 +136,42 @@ func (b *Bot) handleDefault(ctx context.Context, tgBot *bot.Bot, update *models.
 
 		mood := pet.MoodExcited
 		b.petState.SetMood(mood)
+		ack := b.askAI(ctx, "The user just answered a question you asked them. Thank them briefly and enthusiastically.")
 		tgBot.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.Message.Chat.ID,
-			Text:      fmt.Sprintf("%s %s Got it! Thanks! %s", b.animal.Emoji, b.animal.Moods[mood], b.animal.Sounds[mood]),
-			ParseMode: models.ParseModeMarkdown,
+			ChatID: update.Message.Chat.ID,
+			Text:   ack,
 		})
 		return
 	}
 
-	// No pending escalation — just acknowledge
-	mood := b.petState.GetMood()
+	// No pending escalation — process through decision engine
+	if b.engine != nil {
+		answer, err := b.engine.Decide(ctx, update.Message.Text, "")
+		if err != nil {
+			slog.Error("engine decide failed", "error", err)
+			msg := b.askAI(ctx, "You tried to answer but something went wrong internally. Apologize briefly and ask the user to try again.")
+			tgBot.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID: update.Message.Chat.ID,
+				Text:   msg,
+			})
+			return
+		}
+
+		b.petState.RecordInteraction(answer.Source)
+		tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: update.Message.Chat.ID,
+			Text:   answer.Text, // Engine already formats with FormatResponse
+		})
+		// Grow soul async
+		interaction := fmt.Sprintf("Q: %s\nA: %s", update.Message.Text, answer.Text)
+		go b.growSoul(context.Background(), interaction)
+		return
+	}
+
+	// Fallback if engine not set
+	msg := b.askAI(ctx, fmt.Sprintf("The user said: %s\n\nRespond naturally in character.", update.Message.Text))
 	tgBot.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		Text:      fmt.Sprintf("%s %s I'm not waiting for any answer right now. Use /help to see commands.", b.animal.Emoji, b.animal.Moods[mood]),
-		ParseMode: models.ParseModeMarkdown,
+		ChatID: update.Message.Chat.ID,
+		Text:   msg,
 	})
 }

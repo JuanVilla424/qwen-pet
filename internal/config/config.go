@@ -91,10 +91,7 @@ func Load(path string) (*Config, error) {
 
 // LoadSecrets reads sensitive values from environment variables.
 func LoadSecrets() (*Secrets, error) {
-	apiKey := os.Getenv("OPENROUTER_API_KEY")
-	if apiKey == "" {
-		return nil, fmt.Errorf("OPENROUTER_API_KEY is required")
-	}
+	apiKey := os.Getenv("OPENROUTER_API_KEY") // optional for local backends like Ollama
 
 	botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if botToken == "" {
@@ -135,12 +132,6 @@ func applyEnvOverrides(cfg *Config) {
 func (c *Config) validate() error {
 	if c.Server.Port < 1 || c.Server.Port > 65535 {
 		return fmt.Errorf("server.port must be between 1 and 65535, got %d", c.Server.Port)
-	}
-	if c.Pet.Type == "" {
-		return fmt.Errorf("pet.type is required")
-	}
-	if c.Pet.Name == "" {
-		return fmt.Errorf("pet.name is required")
 	}
 	if c.KB.Path == "" {
 		return fmt.Errorf("kb.path is required")

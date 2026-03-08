@@ -10,12 +10,7 @@ const validYAML = `server:
   host: "0.0.0.0"
   port: 19999
 pet:
-  type: "fox"
-  name: "Kit"
   mood_decay_hours: 24
-  traits:
-    - curious
-    - sarcastic
 kb:
   path: "./data/chromem"
   compress: true
@@ -59,14 +54,8 @@ func TestLoad_ValidConfig(t *testing.T) {
 	if cfg.Server.Port != 19999 {
 		t.Errorf("Server.Port = %d, want 19999", cfg.Server.Port)
 	}
-	if cfg.Pet.Type != "fox" {
-		t.Errorf("Pet.Type = %q, want fox", cfg.Pet.Type)
-	}
-	if cfg.Pet.Name != "Kit" {
-		t.Errorf("Pet.Name = %q, want Kit", cfg.Pet.Name)
-	}
-	if len(cfg.Pet.Traits) != 2 {
-		t.Errorf("Pet.Traits count = %d, want 2", len(cfg.Pet.Traits))
+	if cfg.Pet.MoodDecayHours != 24 {
+		t.Errorf("Pet.MoodDecayHours = %d, want 24", cfg.Pet.MoodDecayHours)
 	}
 	if cfg.KB.Path != "./data/chromem" {
 		t.Errorf("KB.Path = %q", cfg.KB.Path)
@@ -95,13 +84,12 @@ func TestLoad_InvalidYAML(t *testing.T) {
 	}
 }
 
-func TestLoad_MissingPetType(t *testing.T) {
+func TestLoad_EmptyPetType_OK(t *testing.T) {
 	yaml := `server:
   host: "0.0.0.0"
   port: 19999
 pet:
-  type: ""
-  name: "Kit"
+  mood_decay_hours: 24
 kb:
   path: "./data"
   collection: "kb"
@@ -114,9 +102,12 @@ decision:
 `
 	path := writeConfig(t, yaml)
 
-	_, err := Load(path)
-	if err == nil {
-		t.Error("Load(missing pet type) should return error")
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() should succeed with empty pet type: %v", err)
+	}
+	if cfg.Pet.Type != "" {
+		t.Errorf("Pet.Type = %q, want empty", cfg.Pet.Type)
 	}
 }
 
@@ -214,14 +205,17 @@ func TestLoadSecrets_AllPresent(t *testing.T) {
 	}
 }
 
-func TestLoadSecrets_MissingAPIKey(t *testing.T) {
+func TestLoadSecrets_MissingAPIKey_OK(t *testing.T) {
 	t.Setenv("OPENROUTER_API_KEY", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "token")
 	t.Setenv("TELEGRAM_USER_ID", "123")
 
-	_, err := LoadSecrets()
-	if err == nil {
-		t.Error("LoadSecrets(missing API key) should return error")
+	secrets, err := LoadSecrets()
+	if err != nil {
+		t.Fatalf("LoadSecrets(missing API key) should succeed for local backends: %v", err)
+	}
+	if secrets.OpenRouterAPIKey != "" {
+		t.Errorf("OpenRouterAPIKey = %q, want empty", secrets.OpenRouterAPIKey)
 	}
 }
 
