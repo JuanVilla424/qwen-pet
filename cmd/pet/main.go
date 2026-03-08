@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/JuanVilla424/qwen-pet/internal/ai"
@@ -15,23 +16,31 @@ import (
 	"github.com/JuanVilla424/qwen-pet/internal/telegram"
 )
 
-const (
-	version     = "0.2.0"
-	profilePath = "data/pet-profile.json"
-	statePath   = "data/pet.json"
-)
+const version = "0.3.0"
 
 func main() {
-	// 1. Load config
-	cfgPath := "configs/pet.yaml"
-	if v := os.Getenv("PET_CONFIG"); v != "" {
-		cfgPath = v
+	// 1. Resolve paths
+	dataDir := resolveDataDir()
+	cfgPath := resolveConfigPath()
+	profilePath := filepath.Join(dataDir, "pet-profile.json")
+	statePath := filepath.Join(dataDir, "pet.json")
+
+	// 2. Ensure data directory exists
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		slog.Error("failed to create data directory", "path", dataDir, "error", err)
+		os.Exit(1)
 	}
 
+	// 3. Load config
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		slog.Error("failed to load config", "error", err)
 		os.Exit(1)
+	}
+
+	// Resolve KB path relative to data dir if not absolute
+	if !filepath.IsAbs(cfg.KB.Path) {
+		cfg.KB.Path = filepath.Join(dataDir, cfg.KB.Path)
 	}
 
 	secrets, err := config.LoadSecrets()
@@ -40,10 +49,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 2. Init logging
+	// 4. Init logging
 	initLogger(cfg.LogLevel)
+	slog.Info("paths resolved", "data_dir", dataDir, "config", cfgPath)
 
-	// 3. Load or create pet profile
+	// 5. Load or create pet profile
 	profile, err := pet.LoadProfile(profilePath)
 	if err != nil {
 		slog.Error("failed to load profile", "error", err)
@@ -59,21 +69,21 @@ func main() {
 		}
 	}
 
-	// 4. Get animal from catalog
+	// 6. Get animal from catalog
 	animal, err := pet.GetAnimal(profile.Type)
 	if err != nil {
 		slog.Error("invalid pet type in profile", "error", err)
 		os.Exit(1)
 	}
 
-	// 5. Resolve traits
+	// 7. Resolve traits
 	traits, err := pet.ResolveTraits(profile.Traits)
 	if err != nil {
 		slog.Error("invalid trait in profile", "error", err)
 		os.Exit(1)
 	}
 
-	// 6. Build personality
+	// 8. Build personality
 	personality := pet.BuildPersonality(animal, traits, profile.Name, profile.Soul)
 	slog.Info("pet initialized",
 		"name", profile.Name,
@@ -83,7 +93,7 @@ func main() {
 		"soul", len(profile.Soul),
 	)
 
-	// 7. Load pet state
+	// 9. Load pet state
 	petState, err := pet.LoadState(statePath, cfg.Pet.MoodDecayHours)
 	if err != nil {
 		slog.Error("failed to load pet state", "error", err)
@@ -91,14 +101,14 @@ func main() {
 	}
 	slog.Info("pet state loaded", "mood", petState.GetMood())
 
-	// 8. Init embedding function
+	// 10. Init embedding function
 	embFunc, err := kb.NewEmbeddingFunc(cfg.Embedding)
 	if err != nil {
 		slog.Error("failed to create embedding function", "error", err)
 		os.Exit(1)
 	}
 
-	// 9. Init KB store
+	// 11. Init KB store
 	store, err := kb.NewStore(cfg.KB, embFunc)
 	if err != nil {
 		slog.Error("failed to init KB", "error", err)
@@ -106,10 +116,10 @@ func main() {
 	}
 	slog.Info("knowledge base ready", "documents", store.Count())
 
-	// 10. Init OpenRouter client
+	// 12. Init OpenRouter client
 	aiClient := ai.NewClient(cfg.AI, secrets.OpenRouterAPIKey)
 
-	// 11. Init Telegram bot
+	// 13. Init Telegram bot
 	tgBot, err := telegram.NewBot(
 		secrets.TelegramBotToken,
 		secrets.TelegramUserID,
@@ -125,21 +135,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 12. Init Decision Engine + bind to bot
+	// 14. Init Decision Engine + bind to bot
 	engine := ai.NewEngine(aiClient, store, personality, petState, tgBot, cfg.Decision)
 	tgBot.SetEngine(engine)
 
-	// 13. Init MCP Server
+	// 15. Init MCP Server
 	mcpServer := mcp.NewServer(engine, store, animal, petState)
 
-	// 14. Context with signal handling
+	// 16. Context with signal handling
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	// 15. Start Telegram bot in goroutine
-	go tgBot.Start(ctx)
-
-	// 16. Run based on mode (env override > auto-detect)
+	// 17. Run based on mode (env override > auto-detect)
 	mode := os.Getenv("PET_MODE")
 	if mode == "" {
 		if stdinIsPipe() {
@@ -153,6 +160,7 @@ func main() {
 
 	switch mode {
 	case "standalone":
+		go tgBot.Start(ctx)
 		<-ctx.Done()
 	default:
 		if err := mcpServer.Run(ctx, version); err != nil {
@@ -160,11 +168,39 @@ func main() {
 		}
 	}
 
-	// 17. Graceful shutdown
+	// 18. Graceful shutdown
 	slog.Info("shutting down, saving pet state")
 	if err := petState.SaveState(); err != nil {
 		slog.Error("failed to save pet state", "error", err)
 	}
+}
+
+func resolveDataDir() string {
+	if v := os.Getenv("PET_DATA_DIR"); v != "" {
+		return v
+	}
+	home, err := os.UserHomeDir()
+	if err == nil {
+		xdg := filepath.Join(home, ".local", "share", "qwen-pet")
+		if _, err := os.Stat(xdg); err == nil {
+			return xdg
+		}
+	}
+	return "data"
+}
+
+func resolveConfigPath() string {
+	if v := os.Getenv("PET_CONFIG"); v != "" {
+		return v
+	}
+	home, err := os.UserHomeDir()
+	if err == nil {
+		xdg := filepath.Join(home, ".config", "qwen-pet", "pet.yaml")
+		if _, err := os.Stat(xdg); err == nil {
+			return xdg
+		}
+	}
+	return "configs/pet.yaml"
 }
 
 func stdinIsPipe() bool {

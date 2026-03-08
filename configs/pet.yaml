@@ -9,7 +9,7 @@ pet:
   mood_decay_hours: 24
 
 kb:
-  path: "./data/chromem"
+  path: "chromem"
   compress: true
   collection: "knowledge"
 
