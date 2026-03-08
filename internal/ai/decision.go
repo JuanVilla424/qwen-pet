@@ -62,7 +62,7 @@ func (e *Engine) Decide(ctx context.Context, question, extraContext string) (Ans
 	// Step 2: Check if KB has a confident answer
 	if len(results) > 0 && results[0].Similarity >= e.cfg.KBThreshold {
 		slog.Info("KB hit", "similarity", results[0].Similarity, "id", results[0].ID)
-		text := pet.FormatResponse(e.personality.Animal, pet.MoodHappy, results[0].Content)
+		text := results[0].Content
 		e.petState.RecordInteraction("kb")
 		_ = e.petState.SaveState()
 		return Answer{
@@ -97,7 +97,7 @@ func (e *Engine) Decide(ctx context.Context, question, extraContext string) (Ans
 
 		// If AI gives a reasonable response, use it
 		if aiResponse != "" {
-			text := pet.FormatResponse(e.personality.Animal, pet.MoodHappy, aiResponse)
+			text := aiResponse
 
 			// Store the Q&A in KB for future reference
 			e.storeInKB(ctx, question, aiResponse)
@@ -117,7 +117,7 @@ func (e *Engine) Decide(ctx context.Context, question, extraContext string) (Ans
 	// Step 5: Escalate to Telegram
 	if e.escalator == nil {
 		return Answer{
-			Text:    pet.FormatResponse(e.personality.Animal, pet.MoodSad, "I don't know the answer and can't reach you via Telegram."),
+			Text:    "I don't know the answer and can't reach you via Telegram.",
 			Source:  "none",
 			PetMood: pet.MoodSad,
 		}, nil
@@ -127,7 +127,7 @@ func (e *Engine) Decide(ctx context.Context, question, extraContext string) (Ans
 	telegramResponse, err := e.escalator.Escalate(ctx, question, kbContext)
 	if err != nil {
 		return Answer{
-			Text:    pet.FormatResponse(e.personality.Animal, pet.MoodSad, fmt.Sprintf("I tried to ask you via Telegram but: %v", err)),
+			Text:    fmt.Sprintf("I tried to ask you via Telegram but: %v", err),
 			Source:  "telegram",
 			PetMood: pet.MoodSad,
 		}, nil
@@ -136,7 +136,7 @@ func (e *Engine) Decide(ctx context.Context, question, extraContext string) (Ans
 	// Store the user's response in KB
 	e.storeInKB(ctx, question, telegramResponse)
 
-	text := pet.FormatResponse(e.personality.Animal, pet.MoodExcited, telegramResponse)
+	text := telegramResponse
 	e.petState.RecordInteraction("telegram")
 	_ = e.petState.SaveState()
 

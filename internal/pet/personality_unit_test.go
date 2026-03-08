@@ -125,24 +125,6 @@ func TestWrapPrompt_NoKBContext(t *testing.T) {
 	}
 }
 
-func TestFormatResponse(t *testing.T) {
-	animal := newTestAnimal()
-	result := FormatResponse(animal, MoodHappy, "This is the answer")
-
-	if !strings.Contains(result, animal.Emoji) {
-		t.Error("FormatResponse should contain animal emoji")
-	}
-	if !strings.Contains(result, animal.Moods[MoodHappy]) {
-		t.Error("FormatResponse should contain mood emoji")
-	}
-	if !strings.Contains(result, "This is the answer") {
-		t.Error("FormatResponse should contain the text")
-	}
-	if !strings.Contains(result, animal.Sounds[MoodHappy]) {
-		t.Error("FormatResponse should contain mood sound")
-	}
-}
-
 func TestPersonality_TraitNames(t *testing.T) {
 	animal := newTestAnimal()
 	traits := newTestTraits()

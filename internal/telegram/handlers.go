@@ -12,6 +12,15 @@ import (
 )
 
 func (b *Bot) handleStart(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
+	b.mu.Lock()
+	needsOb := b.needsOnboarding
+	b.mu.Unlock()
+
+	if needsOb {
+		b.startOnboarding(ctx, update.Message.Chat.ID)
+		return
+	}
+
 	msg := b.askAI(ctx, "A new user just started a conversation with you. Greet them warmly, introduce yourself briefly, and mention the available commands: /status, /pet, /help")
 
 	_, err := tgBot.SendMessage(ctx, &bot.SendMessageParams{
@@ -53,17 +62,7 @@ func (b *Bot) handleHelp(ctx context.Context, tgBot *bot.Bot, update *models.Upd
 }
 
 func (b *Bot) handleReroll(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
-	profile := pet.RandomProfile()
-
-	b.mu.Lock()
-	b.pendingReroll = profile
-	b.mu.Unlock()
-
-	msg := fmt.Sprintf("Rolling the dice...\n\n%s\n\nAccept? (si/no)", profile.Summary())
-	tgBot.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: update.Message.Chat.ID,
-		Text:   msg,
-	})
+	b.startOnboarding(ctx, update.Message.Chat.ID)
 }
 
 func (b *Bot) handleDefault(ctx context.Context, tgBot *bot.Bot, update *models.Update) {
@@ -71,61 +70,38 @@ func (b *Bot) handleDefault(ctx context.Context, tgBot *bot.Bot, update *models.
 		return
 	}
 
-	// Check for pending reroll accept/reject
+	// Check if onboarding is active and waiting for name input
 	b.mu.Lock()
-	reroll := b.pendingReroll
+	session := b.onboarding
+	needsOb := b.needsOnboarding
 	b.mu.Unlock()
 
-	if reroll != nil {
-		text := strings.ToLower(strings.TrimSpace(update.Message.Text))
-		if text == "si" || text == "sí" || text == "yes" || text == "s" || text == "y" {
-			// Accept: save profile, update bot state
-			if err := reroll.SaveProfile(b.profilePath); err != nil {
-				slog.Error("failed to save rerolled profile", "error", err)
-				tgBot.SendMessage(ctx, &bot.SendMessageParams{
-					ChatID: update.Message.Chat.ID,
-					Text:   "Error saving profile. Try /reroll again.",
-				})
-				b.mu.Lock()
-				b.pendingReroll = nil
-				b.mu.Unlock()
-				return
-			}
-
-			animal, _ := pet.GetAnimal(reroll.Type)
-			traits, _ := pet.ResolveTraits(reroll.Traits)
-			personality := pet.BuildPersonality(animal, traits, reroll.Name, reroll.Soul)
-
-			b.mu.Lock()
-			b.animal = animal
-			b.personality = personality
-			b.pendingReroll = nil
-			b.mu.Unlock()
-
-			slog.Info("pet rerolled", "name", reroll.Name, "type", reroll.Type)
-			msg := b.askAI(ctx, "Your identity just changed! Introduce yourself with your new personality. Be excited about your transformation.")
-			tgBot.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID: update.Message.Chat.ID,
-				Text:   msg,
-			})
-			return
-		} else if text == "no" || text == "n" {
-			b.mu.Lock()
-			b.pendingReroll = nil
-			b.mu.Unlock()
-
-			tgBot.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID: update.Message.Chat.ID,
-				Text:   "Rejected. Use /reroll to roll again.",
-			})
-			return
-		}
-		// If not si/no, clear reroll and process as normal message
-		b.mu.Lock()
-		b.pendingReroll = nil
-		b.mu.Unlock()
+	if needsOb && session == nil {
+		b.startOnboarding(ctx, update.Message.Chat.ID)
+		return
 	}
 
+	if session != nil && session.step == stepName {
+		name := strings.TrimSpace(update.Message.Text)
+		if name != "" {
+			b.mu.Lock()
+			session.name = name
+			session.step = stepVirtues
+			b.mu.Unlock()
+			b.sendVirtuesStep(ctx, session)
+			return
+		}
+	}
+
+	if session != nil {
+		tgBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: update.Message.Chat.ID,
+			Text:   "Please use the buttons to complete setup.",
+		})
+		return
+	}
+
+	// Check for pending escalation response
 	b.mu.Lock()
 	pending := b.pending
 	b.mu.Unlock()
@@ -160,9 +136,8 @@ func (b *Bot) handleDefault(ctx context.Context, tgBot *bot.Bot, update *models.
 		b.petState.RecordInteraction(answer.Source)
 		tgBot.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
-			Text:   answer.Text, // Engine already formats with FormatResponse
+			Text:   answer.Text,
 		})
-		// Grow soul async
 		interaction := fmt.Sprintf("Q: %s\nA: %s", update.Message.Text, answer.Text)
 		go b.growSoul(context.Background(), interaction)
 		return

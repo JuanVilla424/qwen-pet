@@ -53,100 +53,7 @@ func main() {
 	initLogger(cfg.LogLevel)
 	slog.Info("paths resolved", "data_dir", dataDir, "config", cfgPath)
 
-	// 5. Load or create pet profile
-	profile, err := pet.LoadProfile(profilePath)
-	if err != nil {
-		slog.Error("failed to load profile", "error", err)
-		os.Exit(1)
-	}
-
-	if profile == nil {
-		slog.Info("no pet profile found, starting onboarding")
-		profile, err = pet.RunOnboarding(os.Stdin, os.Stdout, profilePath)
-		if err != nil {
-			slog.Error("onboarding failed", "error", err)
-			os.Exit(1)
-		}
-	}
-
-	// 6. Get animal from catalog
-	animal, err := pet.GetAnimal(profile.Type)
-	if err != nil {
-		slog.Error("invalid pet type in profile", "error", err)
-		os.Exit(1)
-	}
-
-	// 7. Resolve traits
-	traits, err := pet.ResolveTraits(profile.Traits)
-	if err != nil {
-		slog.Error("invalid trait in profile", "error", err)
-		os.Exit(1)
-	}
-
-	// 8. Build personality
-	personality := pet.BuildPersonality(animal, traits, profile.Name, profile.Soul)
-	slog.Info("pet initialized",
-		"name", profile.Name,
-		"type", animal.Type,
-		"emoji", animal.Emoji,
-		"traits", personality.TraitNames(),
-		"soul", len(profile.Soul),
-	)
-
-	// 9. Load pet state
-	petState, err := pet.LoadState(statePath, cfg.Pet.MoodDecayHours)
-	if err != nil {
-		slog.Error("failed to load pet state", "error", err)
-		os.Exit(1)
-	}
-	slog.Info("pet state loaded", "mood", petState.GetMood())
-
-	// 10. Init embedding function
-	embFunc, err := kb.NewEmbeddingFunc(cfg.Embedding)
-	if err != nil {
-		slog.Error("failed to create embedding function", "error", err)
-		os.Exit(1)
-	}
-
-	// 11. Init KB store
-	store, err := kb.NewStore(cfg.KB, embFunc)
-	if err != nil {
-		slog.Error("failed to init KB", "error", err)
-		os.Exit(1)
-	}
-	slog.Info("knowledge base ready", "documents", store.Count())
-
-	// 12. Init OpenRouter client
-	aiClient := ai.NewClient(cfg.AI, secrets.OpenRouterAPIKey)
-
-	// 13. Init Telegram bot
-	tgBot, err := telegram.NewBot(
-		secrets.TelegramBotToken,
-		secrets.TelegramUserID,
-		animal,
-		petState,
-		personality,
-		aiClient,
-		cfg.Telegram.TimeoutMinutes,
-		profilePath,
-	)
-	if err != nil {
-		slog.Error("failed to init Telegram bot", "error", err)
-		os.Exit(1)
-	}
-
-	// 14. Init Decision Engine + bind to bot
-	engine := ai.NewEngine(aiClient, store, personality, petState, tgBot, cfg.Decision)
-	tgBot.SetEngine(engine)
-
-	// 15. Init MCP Server
-	mcpServer := mcp.NewServer(engine, store, animal, petState)
-
-	// 16. Context with signal handling
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
-
-	// 17. Run based on mode (env override > auto-detect)
+	// 5. Detect mode early (needed for profile-nil decisions)
 	mode := os.Getenv("PET_MODE")
 	if mode == "" {
 		if stdinIsPipe() {
@@ -156,8 +63,114 @@ func main() {
 		}
 	}
 
-	slog.Info("qwen-pet starting", "version", version, "pet", profile.Name, "mode", mode)
+	// 6. Load pet profile
+	profile, err := pet.LoadProfile(profilePath)
+	if err != nil {
+		slog.Error("failed to load profile", "error", err)
+		os.Exit(1)
+	}
 
+	if profile == nil && mode != "standalone" {
+		slog.Error("no pet profile found — run in standalone mode first to complete onboarding via Telegram")
+		os.Exit(1)
+	}
+
+	// 7. Resolve animal, traits, personality (only if profile exists)
+	var animal *pet.Animal
+	var personality *pet.Personality
+
+	if profile != nil {
+		animal, err = pet.GetAnimal(profile.Type)
+		if err != nil {
+			slog.Error("invalid pet type in profile", "error", err)
+			os.Exit(1)
+		}
+
+		traits, err := pet.ResolveTraits(profile.Traits)
+		if err != nil {
+			slog.Error("invalid trait in profile", "error", err)
+			os.Exit(1)
+		}
+
+		personality = pet.BuildPersonality(animal, traits, profile.Name, profile.Soul)
+		slog.Info("pet initialized",
+			"name", profile.Name,
+			"type", animal.Type,
+			"emoji", animal.Emoji,
+			"traits", personality.TraitNames(),
+			"soul", len(profile.Soul),
+		)
+	} else {
+		slog.Info("no pet profile found, onboarding will start via Telegram")
+	}
+
+	// 8. Load pet state
+	petState, err := pet.LoadState(statePath, cfg.Pet.MoodDecayHours)
+	if err != nil {
+		slog.Error("failed to load pet state", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("pet state loaded", "mood", petState.GetMood())
+
+	// 9. Init embedding function
+	embFunc, err := kb.NewEmbeddingFunc(cfg.Embedding)
+	if err != nil {
+		slog.Error("failed to create embedding function", "error", err)
+		os.Exit(1)
+	}
+
+	// 10. Init KB store
+	store, err := kb.NewStore(cfg.KB, embFunc)
+	if err != nil {
+		slog.Error("failed to init KB", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("knowledge base ready", "documents", store.Count())
+
+	// 11. Init OpenRouter client
+	aiClient := ai.NewClient(cfg.AI, secrets.OpenRouterAPIKey)
+
+	// 12. Init Telegram bot
+	tgBot, err := telegram.NewBot(
+		secrets.TelegramBotToken,
+		secrets.TelegramUserID,
+		animal,
+		petState,
+		personality,
+		aiClient,
+		cfg.Telegram.TimeoutMinutes,
+		profilePath,
+		store,
+		cfg.Decision,
+	)
+	if err != nil {
+		slog.Error("failed to init Telegram bot", "error", err)
+		os.Exit(1)
+	}
+
+	// 13. Init Decision Engine + bind to bot (only if profile exists)
+	var engine *ai.Engine
+	if profile != nil {
+		engine = ai.NewEngine(aiClient, store, personality, petState, tgBot, cfg.Decision)
+		tgBot.SetEngine(engine)
+	} else {
+		tgBot.SetNeedsOnboarding(true)
+	}
+
+	// 14. Init MCP Server
+	mcpServer := mcp.NewServer(engine, store, animal, petState)
+
+	// 15. Context with signal handling
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	petName := "unset"
+	if profile != nil {
+		petName = profile.Name
+	}
+	slog.Info("qwen-pet starting", "version", version, "pet", petName, "mode", mode)
+
+	// 16. Run based on mode
 	switch mode {
 	case "standalone":
 		go tgBot.Start(ctx)
@@ -168,7 +181,7 @@ func main() {
 		}
 	}
 
-	// 18. Graceful shutdown
+	// 17. Graceful shutdown
 	slog.Info("shutting down, saving pet state")
 	if err := petState.SaveState(); err != nil {
 		slog.Error("failed to save pet state", "error", err)

@@ -62,8 +62,7 @@ func WrapPrompt(p *Personality, mood Mood, question, kbContext string) string {
 
 	// Current mood
 	moodEmoji := p.Animal.Moods[mood]
-	sound := p.Animal.Sounds[mood]
-	prompt.WriteString(fmt.Sprintf("Your current mood: %s %s %s\n\n", mood.String(), moodEmoji, sound))
+	prompt.WriteString(fmt.Sprintf("Your current mood: %s %s\n\n", mood.String(), moodEmoji))
 
 	// Soul
 	if len(p.Soul) > 0 {
@@ -91,14 +90,6 @@ func WrapPrompt(p *Personality, mood Mood, question, kbContext string) string {
 	prompt.WriteString(fmt.Sprintf("User's question: %s", question))
 
 	return prompt.String()
-}
-
-// FormatResponse wraps a response with the pet's visual identity.
-func FormatResponse(animal *Animal, mood Mood, text string) string {
-	moodEmoji := animal.Moods[mood]
-	sound := animal.Sounds[mood]
-
-	return fmt.Sprintf("%s %s\n\n%s\n\n%s", animal.Emoji, moodEmoji, text, sound)
 }
 
 // TraitNames returns a comma-separated list of trait names.
