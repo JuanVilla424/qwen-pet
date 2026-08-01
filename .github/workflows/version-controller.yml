@@ -24,7 +24,7 @@ jobs:
     steps:
       - name: Checkout Repository
         id: checkout_repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Set up Python
