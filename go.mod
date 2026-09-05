@@ -3,7 +3,7 @@ module github.com/JuanVilla424/qwen-pet
 go 1.25
 
 require (
-	github.com/go-telegram/bot v1.19.0
+	github.com/go-telegram/bot v1.25.0
 	github.com/modelcontextprotocol/go-sdk v1.4.0
 	github.com/philippgille/chromem-go v0.7.0
 	gopkg.in/yaml.v3 v3.0.1
